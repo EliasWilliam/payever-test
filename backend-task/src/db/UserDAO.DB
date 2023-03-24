@@ -1,0 +1,48 @@
+import { MongoClient, Collection, ObjectID } from 'mongodb';
+import { User } from './user';
+
+export class UserDAO {
+  private client: MongoClient;
+  private users: Collection<User>;
+
+  async connect(uri: string, dbName: string, collectionName: string): Promise<void> {
+    this.client = await MongoClient.connect(uri, { useNewUrlParser: true });
+    this.users = this.client.db(dbName).collection(collectionName);
+  }
+
+  async getAll(): Promise<User[]> {
+    const users = await this.users.find().toArray();
+    return users;
+  }
+
+  async getById(id: string): Promise<User | null> {
+    const user = await this.users.findOne({ _id: new ObjectID(id) });
+    return user;
+  }
+
+  async create(user: User): Promise<User> {
+    const result = await this.users.insertOne(user);
+    const newUser = result.ops[0];
+    return newUser;
+  }
+
+  async update(id: string, user: User): Promise<User | null> {
+    const result = await this.users.updateOne({ _id: new ObjectID(id) }, { $set: user });
+    const updatedUser = await this.users.findOne({ _id: new ObjectID(id) });
+
+    if (!updatedUser) {
+      return null;
+    }
+
+    return updatedUser;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await this.users.deleteOne({ _id: new ObjectID(id) });
+    return result.deletedCount === 1;
+  }
+
+  async close(): Promise<void> {
+    await this.client.close();
+  }
+}
